@@ -1,0 +1,37 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+require 'yaml'
+
+# 設定ファイルの読み込み
+settings = YAML.load_file('config.yaml')
+
+Vagrant.configure("2") do |config|
+
+  # 共有フォルダを使用しない
+  config.vm.synced_folder '.', '/vagrant', disabled: true
+
+  config.vm.define settings['node']['hostname'] do |node|
+    # ホスト名
+    node.vm.hostname = settings['node']['hostname']
+    # ノードのベースOSを指定
+    node.vm.box = settings['os']
+  end
+
+  config.vm.provider :vmware_esxi do |esxi|
+    # 構築先のESXiの情報
+    esxi.esxi_hostname = settings['esxi']['hostname']
+    esxi.esxi_username = settings['esxi']['username']
+    esxi.esxi_password = settings['esxi']['password']
+    esxi.esxi_hostport = settings['esxi']['hostport']
+    esxi.esxi_disk_store = settings['esxi']['diskstore']
+    esxi.guest_guestos = settings['os_type']
+
+    # 構築するVMの設定
+    esxi.guest_name = settings['node']['hostname']
+    esxi.guest_username = settings['guest_user']
+    esxi.guest_memsize = settings['node']['memory']
+    esxi.guest_numvcpus = settings['node']['cpus']
+    esxi.guest_disk_type = settings['node']['disk_type']
+  end
+end

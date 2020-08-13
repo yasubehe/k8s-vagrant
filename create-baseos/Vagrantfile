@@ -1,0 +1,23 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+require 'yaml'
+
+# 設定ファイルの読み込み
+settings = YAML.load_file('config.yaml')
+
+Vagrant.configure("2") do |config|
+
+  config.vm.define settings['node']['hostname'] do |node|
+    node.vm.hostname = settings['node']['hostname']
+  end
+
+  config.vm.provider :vmware_esxi do |esxi|
+    # イメージ作成元のESXiの情報
+    esxi.guest_name = settings['node']['hostname']
+    esxi.esxi_hostname = settings['esxi']['hostname']
+    esxi.esxi_username = settings['esxi']['username']
+    esxi.esxi_password = settings['esxi']['password']
+    esxi.esxi_hostport = settings['esxi']['hostport']
+  end
+end

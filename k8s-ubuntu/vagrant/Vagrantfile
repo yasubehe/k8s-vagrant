@@ -1,0 +1,99 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+require 'yaml'
+
+# 設定ファイルの読み込み
+settings = YAML.load_file('config.yaml')
+
+##################################
+# 共通のプロビジョニングスクリプト
+##################################
+$configureBox = <<-SHELL
+  echo "This is Common Setting"
+
+  apt update
+  apt dist-upgrade
+  apt autoremove
+
+  # デフォルトゲートウェイ,DNSの変更
+  # 今回のネットワーク構成ではkubernetes用のIPアドレスを割り当てたIFからインターネット接続を行うため
+  # そのIFにデフォルトゲートウェイとDNSサーバのアドレスを設定する。
+  # それ以外のネットワークIF（Vagrantで使うIFからはデフォルトゲートウェイ,DNSを削除する）
+  # Vagrant用のIFのDHCPサーバでrouterアドレスを割り当てない設定をしていればなくても問題はない。
+  #（\は再度エスケープする必要がある）
+  cp -p /etc/netplan/00-installer-config.yaml /etc/netplan/99-customize-installer-config.yaml
+  sed -i -e "/    ens/a\\      dhcp6: false"  /etc/netplan/99-customize-installer-config.yaml
+
+  cp -p /etc/netplan/50-vagrant.yaml  /etc/netplan/99-vagrant-customize.yaml
+  sed -i -e "/    ens/a\\        addresses: [${2}]" /etc/netplan/99-vagrant-customize.yaml
+  sed -i -e "/    ens/a\\      nameservers:"        /etc/netplan/99-vagrant-customize.yaml
+  sed -i -e "/    ens/a\\      gateway4: ${1}"      /etc/netplan/99-vagrant-customize.yaml
+  sed -i -e "/    ens/a\\      dhcp6: false"        /etc/netplan/99-vagrant-customize.yaml
+  sed -i -e "/    ens/a\\      dhcp4: false"        /etc/netplan/99-vagrant-customize.yaml
+
+  netplan apply
+
+  # ノードのipv6無効化
+  echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+  echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.conf
+  echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.conf
+
+  # ノードのipv4のフォワード設定
+  echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+
+  # 上記sysctl関連の変更を反映
+  sysctl --system
+
+  # Ansibleコマンドを実行するサーバのSSH公開鍵のコピー
+  echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC1UwVLlFyaTRiGCuYnDWv6WramI/ogDVF0ZdwjNvjbmBHkg8Ol6lbMh1qLAUNyd940OdJECRbvlPXuGRL/0TONCyw1NkKMxWzyoVDzfbHBENr1IC+PvgPOOZwoRwQYy4LWxzqR5kt/vcsw7IDFYwamXLNht0iLkQTkP/qnMdxvF2x1kT/lxIz1LW1HXKD9YT1UYuuZT92MIuKVEjS7c7QDttex/UqafBNF/4JlOP5a9Fj6jm+tUSx2aD4L5z7UOWjl/O3bgYFQSv47oq09e21UmOB/K+KH+k4t6oUkZhFMe/RstQKaBHf6a54Chc7trXCM96xx8/jlh+AmXJVeOObLrV1oqkThNwqUKMU+yD4+72LVceDVzKyDN2ahW1CdJy4a4d03TxkLAraHYid5vWBVywebC0BbobmmgDVk5l3CWjZ3IRJgmKT0O0w1G1egVEmUiW207/HftL72eFYgVafxIK0FwyVULS5nfF6w9uOW9z6gsRdBpe6SgU3FXlFYMwpB1+hYaaQdsp3f21cT1p8JuD3G/r21XZ57OIUryOhQHq9pc0on6GNrIqjmmhEokpzmtP4cceN65HiKh+jD50vbnPjNuFa7/T3SBmQAZVkcSmpixwy7RBNXutCeZu8IJLiHSgke6doY6/K3mmGGCvRileT1xjFEJOxqdR/Lk137tQ== youkoso.yasubehe@gmail.com" >> .ssh/authorized_keys
+
+  # sshでのrootログインを許可する
+  sed -i -e "s/^[#]*PermitRootLogin[[:space:]].*/PermitRootLogin yes/" /etc/ssh/sshd_config
+  systemctl restart sshd
+
+  # sshpassのインストール
+  apt -y install sshpass
+
+ SHELL
+
+Vagrant.configure(2) do |config|
+
+  # 共有フォルダを使用しない
+  config.vm.synced_folder '.', '/vagrant', disabled: true
+
+  settings['nodes'].each do |node|
+    config.vm.define node['hostname'] do |s|
+      # ホスト名
+      s.vm.hostname = node['hostname']
+      # ノードのベースOSを指定
+      s.vm.box = settings['os']
+      # ネットワークを指定
+      s.vm.network "private_network", ip: node['ip']
+
+      s.vm.provider :vmware_esxi do |esxi|
+        # 構築先のESXiの情報
+        esxi.esxi_hostname = settings['esxi']['hostname']
+        esxi.esxi_username = settings['esxi']['username']
+        esxi.esxi_password = settings['esxi']['password']
+        esxi.esxi_hostport = settings['esxi']['hostport']
+        esxi.esxi_virtual_network = settings['esxi']['virtualnetworks']
+        esxi.esxi_disk_store = settings['esxi']['diskstore']
+        esxi.guest_guestos = settings['os_type'] 
+        
+        # 構築するVMの設定
+        esxi.guest_name = node['hostname']
+        esxi.guest_username = settings['guest_user']
+        esxi.guest_memsize = node['memory']
+        esxi.guest_numvcpus = node['cpus']
+        esxi.guest_disk_type = node['disk_type']
+        esxi.guest_boot_disk_size = node['disk_size']
+        esxi.guest_storage  = node['guest_storage']
+      end
+
+      # 共通のプロビジョニング
+      s.vm.provision "shell", inline: $configureBox, args: [settings['default-gw'], settings['dns']]
+
+    end
+  end
+end

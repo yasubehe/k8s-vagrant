@@ -1,0 +1,51 @@
+esxi:
+  hostname: "192.168.123.74"  # ESXiのIPアドレス
+  username: "root"            # ESXiのログインユーザ
+  password: "prompt:"         # ログインパスワード("prompt:" とするとvagrant up 時に入力)
+  hostport: 22                # ESXiのsshログインポート
+  virtualnetworks:            # どのネットワークに接続するかを指定
+    - "VLAN10"                # プライマリインタフェース
+    - "VM Network"            # 追加のネットワークインタフェース
+  diskstore: "datastore1"     # 使用するデータストア名
+
+os: "centos8box"              # 使用するOSイメージの指定（自作box）
+#os: "generic/centos8"        # 使用するOSイメージの指定（Vagrant Cloudのboxを使う場合）
+os_type: "centos8-64Guest"    # OSタイプ
+
+default-gw: "192.168.123.1"   # ネットワークのデフォルトゲートウェイの指定
+dns: "192.168.123.1"          # ネットワークのDNSサーバの指定
+
+guest_user: "vagrant"         # VMのゲストユーザ名
+
+kubeadm:
+  pod-network-cidr: "10.240.0.0/16"   # kubeadm init実行時の--pod-network-cidrに指定する値
+
+nodes:
+  - type: "control-plane"     # Control Planeの設定（1ノードのみ）
+    hostname: "k8s-master"    # ホスト名かつ作成するVM名
+    cpus: 2                   # CPU数
+    memory: 4096              # メモリ(GB)
+    ip: "192.168.123.180"     # ノードのIPアドレス
+    disk_type: "thin"         # ディスクの形式（thin, thick, eagerzeroedthick）
+#    disk_size: "30"          # ブートデバイスのディスクサイズ（GB） generic/centos8は128GBなので30を設定しても小さくはならない
+  - type: "worker"            # Workerノードの設定（複数台設定可）
+    hostname: "k8s-node1"
+    cpus: 2
+    memory: 4096
+    ip: "192.168.123.181"
+    disk_type: "thin"
+#    disk_size: "30"
+  - type: "worker"
+    hostname: "k8s-node2"
+    cpus: 2
+    memory: 4096
+    ip: "192.168.123.182"
+    disk_type: "thin"
+#    disk_size: "30"
+  - type: "worker"
+    hostname: "k8s-node3"
+    cpus: 2
+    memory: 4096
+    ip: "192.168.123.183"
+    disk_type: "thin"
+#    disk_size: "30"

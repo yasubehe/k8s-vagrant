@@ -1,0 +1,8 @@
+esxi:
+  hostname: "192.168.123.74"  # ESXiのIPアドレス
+  username: "root"            # ESXiのログインユーザ
+  password: "prompt:"         # ログインパスワード("prompt:" とするとvagrant up 時に入力)
+  hostport: 22                # ESXiのsshログインポート
+node:
+  hostname: "CentOS8"         # ベース用に作成したVMの名前
+#  hostname: "ubuntu20.04LTS"  # ベース用に作成したVMの名前

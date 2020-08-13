@@ -1,0 +1,17 @@
+esxi:
+  hostname: "192.168.123.74"  # ESXiのIPアドレス
+  username: "root"            # ESXiのログインユーザ
+  password: "prompt:"         # ログインパスワード("prompt:" とするとvagrant up 時に入力)
+  hostport: 22                # ESXiのsshログインポート
+  diskstore: "datastore1"     # 使用するデータストア名
+
+os: "centos8box"              # 使用するOSイメージの指定（box）
+os_type: "centos8-64Guest"    # OSタイプ
+
+guest_user: "vagrant"         # VMのゲストユーザ名
+
+node:
+  hostname: "CentOS8-test2"         # 作成するVMの名前
+  cpus: 2                   # CPU数
+  memory: 4096              # メモリ(GB)
+  disk_type: "thin"         # ディスクの形式（thin, thick, eagerzeroedthick）
