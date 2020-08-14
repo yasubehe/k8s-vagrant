@@ -12,10 +12,6 @@ settings = YAML.load_file('config.yaml')
 $configureBox = <<-SHELL
   echo "This is Common Setting"
 
-  apt update
-  apt dist-upgrade
-  apt autoremove
-
   # デフォルトゲートウェイ,DNSの変更
   # 今回のネットワーク構成ではkubernetes用のIPアドレスを割り当てたIFからインターネット接続を行うため
   # そのIFにデフォルトゲートウェイとDNSサーバのアドレスを設定する。
@@ -33,6 +29,10 @@ $configureBox = <<-SHELL
   sed -i -e "/    ens/a\\      dhcp4: false"        /etc/netplan/99-vagrant-customize.yaml
 
   netplan apply
+
+  apt-get update
+  apt-get dist-upgrade -y
+  apt-get autoremove
 
   # ノードのipv6無効化
   echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
@@ -53,7 +53,7 @@ $configureBox = <<-SHELL
   systemctl restart sshd
 
   # sshpassのインストール
-  apt -y install sshpass
+  apt-get -y install sshpass
 
  SHELL
 
